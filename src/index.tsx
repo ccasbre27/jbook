@@ -1,23 +1,53 @@
 import ReactDOM from "react-dom";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as esbuild from 'esbuild-wasm';
+import { unpkgPathPlugin } from "./plugins/unpkg-path-plugin";
+
 
 const App = () => {
 
+    const ref = useRef<any>();
     const [input, setInput] = useState('');
-    const [code, setcode] = useState('');
+    const [code, setCode] = useState('');
 
-    const handlerOnClick = () => {
-        console.log(input);
+    const startService = async () => {
+        ref.current = await esbuild.startService({
+            worker: true,
+            wasmURL: '/esbuild.wasm'
+        });
     };
 
-    return <div>
-        <textarea value={input} onChange={e => setInput(e.target.value)}>
-        </textarea>
+    useEffect(() => {
+        startService();
+    }, []);
+
+    const handlerOnClick = async () => {
+
+        if(!ref.current) {
+            return;
+        }
+
+        const result = await ref.current.build({
+            entryPoints: ['index.js'], 
+            bundle: true,
+            write: false,
+            plugins: [unpkgPathPlugin()]
+        });
+        console.log(result);
+        setCode(result.code);
+        
+    };
+
+    return (
         <div>
-            <button onClick={handlerOnClick}>Submit</button>
-            <pre>{code}</pre>
+            <textarea value={input} onChange={e => setInput(e.target.value)}>
+            </textarea>
+            <div>
+                <button onClick={handlerOnClick}>Submit</button>
+                <pre>{code}</pre>
+            </div>
         </div>
-    </div>;
+    );
 }
 
 ReactDOM.render(
